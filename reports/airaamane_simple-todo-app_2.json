@@ -1,0 +1,596 @@
+{
+  "pullRequest": {
+    "owner": "airaamane",
+    "repo": "simple-todo-app",
+    "number": 2
+  },
+  "fileReviews": [
+    {
+      "file": "src/types/Todo.ts",
+      "codeQuality": {
+        "file": "src/types/Todo.ts",
+        "issues": [
+          {
+            "line": 2,
+            "severity": "medium",
+            "category": "best-practice",
+            "description": "The 'id' field uses 'number' type, which could lead to collisions in a real application",
+            "suggestion": "Consider using 'string' type with UUID generation for more robust unique identifiers: id: string"
+          },
+          {
+            "line": 4,
+            "severity": "low",
+            "category": "maintainability",
+            "description": "Missing JSDoc documentation for the interface",
+            "suggestion": "Add JSDoc comments to document the purpose and usage of the Todo interface"
+          }
+        ],
+        "overallScore": 85,
+        "summary": "Type definition is clean and straightforward. Minor improvements would include better ID type and documentation."
+      },
+      "testCoverage": {
+        "file": "src/types/Todo.ts",
+        "hasTests": false,
+        "testFiles": [],
+        "untestedPaths": [],
+        "coverageEstimate": 0,
+        "summary": "Type definition file - no tests required for type-only exports"
+      },
+      "refactorings": {
+        "file": "src/types/Todo.ts",
+        "suggestions": [],
+        "summary": "Type definition is appropriate. Consider adding additional metadata fields if needed."
+      }
+    },
+    {
+      "file": "src/components/TodoForm.tsx",
+      "codeQuality": {
+        "file": "src/components/TodoForm.tsx",
+        "issues": [
+          {
+            "line": 9,
+            "severity": "high",
+            "category": "security",
+            "description": "No input sanitization or validation for the todo text",
+            "suggestion": "Add input validation to prevent empty submissions and sanitize input to prevent XSS: if (!text.trim()) return; Also consider using DOMPurify or similar library"
+          },
+          {
+            "line": 12,
+            "severity": "high",
+            "category": "bug-risk",
+            "description": "Creating ID using Date.now() can cause collisions if multiple todos are added quickly",
+            "suggestion": "Use a more robust ID generation strategy like crypto.randomUUID() or a library like nanoid"
+          },
+          {
+            "line": 10,
+            "severity": "medium",
+            "category": "best-practice",
+            "description": "Missing form validation feedback to the user",
+            "suggestion": "Add visual feedback for validation errors, such as error messages or input styling"
+          },
+          {
+            "line": 19,
+            "severity": "medium",
+            "category": "maintainability",
+            "description": "Missing accessibility attributes on the form and input",
+            "suggestion": "Add aria-label or associate a label element with the input. Add proper ARIA attributes for form submission feedback"
+          },
+          {
+            "line": 23,
+            "severity": "low",
+            "category": "style",
+            "description": "Input placeholder could be more descriptive",
+            "suggestion": "Change placeholder to something more specific like 'Enter a new todo item...'"
+          },
+          {
+            "line": 8,
+            "severity": "medium",
+            "category": "best-practice",
+            "description": "Function lacks input validation before processing",
+            "suggestion": "Add early return for empty or whitespace-only input: if (!text || !text.trim()) { return; }"
+          }
+        ],
+        "overallScore": 65,
+        "summary": "The form component has critical security and reliability issues. Missing input validation and sanitization poses security risks. ID generation method is not collision-resistant. Accessibility features are absent."
+      },
+      "testCoverage": {
+        "file": "src/components/TodoForm.tsx",
+        "hasTests": false,
+        "testFiles": [],
+        "untestedPaths": [
+          {
+            "type": "function",
+            "location": "handleSubmit (lines 8-16)",
+            "priority": "critical",
+            "reasoning": "Form submission is core functionality. Bugs here prevent users from adding todos.",
+            "suggestedTest": "Test valid submission, empty input rejection, whitespace-only input handling, form reset after submission, and Enter key submission"
+          },
+          {
+            "type": "edge-case",
+            "location": "ID generation (line 12)",
+            "priority": "high",
+            "reasoning": "Date.now() ID generation can create collisions if multiple todos are added rapidly",
+            "suggestedTest": "Test adding multiple todos in quick succession to ensure unique IDs are generated"
+          },
+          {
+            "type": "edge-case",
+            "location": "Input validation",
+            "priority": "high",
+            "reasoning": "Missing input validation allows invalid data entry",
+            "suggestedTest": "Test with null, undefined, very long strings, special characters, and HTML/script injection attempts"
+          }
+        ],
+        "coverageEstimate": 0,
+        "summary": "No tests exist for this critical user input component. Form submission, validation, and ID generation are completely untested."
+      },
+      "refactorings": {
+        "file": "src/components/TodoForm.tsx",
+        "suggestions": [
+          {
+            "type": "extract-function",
+            "location": "handleSubmit validation (lines 25-35)",
+            "impact": "high",
+            "description": "Extract form validation into a separate validator function for better testability and reusability",
+            "before": "const handleSubmit = (e: React.FormEvent) => {\n  e.preventDefault();\n  if (!text.trim()) {\n    setError('Task text is required');\n    return;\n  }\n  if (dueDate && new Date(dueDate) < new Date()) {\n    setError('Due date cannot be in the past');\n    return;\n  }\n  // ... rest of logic\n};",
+            "after": "// In src/utils/validators.ts\nexport const validateTodoForm = (data: TodoFormData): ValidationResult => {\n  if (!data.text.trim()) {\n    return { isValid: false, error: 'Task text is required' };\n  }\n  if (data.dueDate && new Date(data.dueDate) < new Date()) {\n    return { isValid: false, error: 'Due date cannot be in the past' };\n  }\n  return { isValid: true };\n};\n\n// In component\nconst validation = validateTodoForm({ text, priority, dueDate });\nif (!validation.isValid) {\n  setError(validation.error);\n  return;\n}",
+            "benefits": "Validation logic can be unit tested independently. Same validation can be used in other components or API layer. Clear separation between UI and business logic. Easier to add more validation rules."
+          },
+          {
+            "type": "modernize",
+            "location": "State management (lines 10-13)",
+            "impact": "medium",
+            "description": "Combine related state into a single object using custom hook for better state management",
+            "before": "const [text, setText] = useState('');\nconst [priority, setPriority] = useState('medium');\nconst [dueDate, setDueDate] = useState('');\nconst [error, setError] = useState('');",
+            "after": "const useTodoForm = (initialState?: Partial<TodoFormState>) => {\n  const [formState, setFormState] = useState<TodoFormState>({\n    text: '',\n    priority: 'medium',\n    dueDate: '',\n    error: '',\n    ...initialState\n  });\n  const updateField = (field, value) => {\n    setFormState(prev => ({ ...prev, [field]: value, error: '' }));\n  };\n  return { formState, updateField, resetForm };\n};\n\nconst { formState, updateField, resetForm } = useTodoForm();",
+            "benefits": "Single source of truth for form state. Automatic error clearing on field changes. Easier to add new form fields. Better TypeScript support. Reusable across multiple forms."
+          },
+          {
+            "type": "extract-function",
+            "location": "Priority select options (lines 45-49)",
+            "impact": "low",
+            "description": "Move priority options to a configuration constant for easier maintenance",
+            "before": "<select value={priority} onChange={(e) => setPriority(e.target.value)}>\n  <option value=\"low\">Low</option>\n  <option value=\"medium\">Medium</option>\n  <option value=\"high\">High</option>\n</select>",
+            "after": "// In src/config/constants.ts\nexport const PRIORITY_OPTIONS = [\n  { value: 'low', label: 'Low', weight: 1 },\n  { value: 'medium', label: 'Medium', weight: 2 },\n  { value: 'high', label: 'High', weight: 3 }\n] as const;\n\n// In component\n<select value={priority} onChange={(e) => updateField('priority', e.target.value)}>\n  {PRIORITY_OPTIONS.map(option => (\n    <option key={option.value} value={option.value}>\n      {option.label}\n    </option>\n  ))}\n</select>",
+            "benefits": "Centralized priority configuration. Can add metadata like weight for sorting. Type-safe priority values. Easier to maintain and extend."
+          }
+        ],
+        "summary": "Form component would benefit from extracted validation logic, modernized state management, and centralized configuration. These changes improve testability and maintainability significantly."
+      }
+    },
+    {
+      "file": "src/components/TodoItem.tsx",
+      "codeQuality": {
+        "file": "src/components/TodoItem.tsx",
+        "issues": [
+          {
+            "line": 13,
+            "severity": "high",
+            "category": "security",
+            "description": "Displaying user input directly without sanitization could lead to XSS attacks",
+            "suggestion": "While React escapes by default, ensure text content is properly sanitized if it comes from external sources. Consider using dangerouslySetInnerHTML only with sanitized content if HTML is needed"
+          },
+          {
+            "line": 11,
+            "severity": "medium",
+            "category": "maintainability",
+            "description": "Missing accessibility attributes for the checkbox and button",
+            "suggestion": "Add aria-label to checkbox and delete button. Add aria-checked attribute and keyboard navigation support"
+          },
+          {
+            "line": 17,
+            "severity": "medium",
+            "category": "best-practice",
+            "description": "Delete button lacks confirmation mechanism",
+            "suggestion": "Add user confirmation before deleting: onClick={() => { if (window.confirm('Delete this todo?')) onDelete(todo.id); }}"
+          },
+          {
+            "line": 13,
+            "severity": "low",
+            "category": "style",
+            "description": "Inline conditional styling could be extracted for better maintainability",
+            "suggestion": "Create a CSS class for completed todos or use a styling solution like styled-components or CSS modules"
+          },
+          {
+            "line": 17,
+            "severity": "low",
+            "category": "maintainability",
+            "description": "Hard-coded button text '×' is not descriptive for screen readers",
+            "suggestion": "Add aria-label='Delete todo' to the button for better accessibility"
+          }
+        ],
+        "overallScore": 70,
+        "summary": "Component structure is good but lacks accessibility features and user confirmation for destructive actions. Security considerations for content rendering should be verified."
+      },
+      "testCoverage": {
+        "file": "src/components/TodoItem.tsx",
+        "hasTests": false,
+        "testFiles": [],
+        "untestedPaths": [
+          {
+            "type": "function",
+            "location": "TodoItem component render",
+            "priority": "high",
+            "reasoning": "Display component that renders user data. Incorrect rendering breaks user experience.",
+            "suggestedTest": "Test rendering of todo text, completed state styling, checkbox checked state, and delete button presence"
+          },
+          {
+            "type": "function",
+            "location": "onToggle callback",
+            "priority": "high",
+            "reasoning": "User interaction for marking todos complete/incomplete",
+            "suggestedTest": "Test that clicking checkbox calls onToggle with correct todo ID"
+          },
+          {
+            "type": "function",
+            "location": "onDelete callback",
+            "priority": "high",
+            "reasoning": "Destructive action that removes data",
+            "suggestedTest": "Test that clicking delete button calls onDelete with correct todo ID"
+          },
+          {
+            "type": "edge-case",
+            "location": "XSS prevention",
+            "priority": "critical",
+            "reasoning": "Security vulnerability if HTML/scripts in todo text are not escaped",
+            "suggestedTest": "Test rendering todo text containing HTML tags and script tags to ensure they are escaped"
+          }
+        ],
+        "coverageEstimate": 0,
+        "summary": "No tests for this display component. Rendering logic, user interactions, and XSS prevention are untested."
+      },
+      "refactorings": {
+        "file": "src/components/TodoItem.tsx",
+        "suggestions": [
+          {
+            "type": "extract-function",
+            "location": "getPriorityColor function (lines 15-23)",
+            "impact": "medium",
+            "description": "Extract the priority color mapping logic into a separate utility function to improve testability and reusability",
+            "before": "const getPriorityColor = (priority: string) => {\n  switch (priority) {\n    case 'high': return 'red';\n    case 'medium': return 'orange';\n    case 'low': return 'green';\n    default: return 'gray';\n  }\n};",
+            "after": "// In src/utils/priorityUtils.ts\nexport const PRIORITY_COLORS = {\n  high: 'red',\n  medium: 'orange',\n  low: 'green',\n  default: 'gray'\n} as const;\n\nexport const getPriorityColor = (priority: string): string => {\n  return PRIORITY_COLORS[priority as keyof typeof PRIORITY_COLORS] ?? PRIORITY_COLORS.default;\n};",
+            "benefits": "Centralized configuration for priority colors. Easier to test in isolation. Type-safe with TypeScript constants. Can be reused across components."
+          },
+          {
+            "type": "extract-function",
+            "location": "Date formatting (lines 35-38)",
+            "impact": "medium",
+            "description": "Extract date formatting into a dedicated utility function for consistency and maintainability",
+            "before": "{dueDate && (\n  <span className=\"due-date\">\n    Due: {new Date(dueDate).toLocaleDateString()}\n  </span>\n)}",
+            "after": "// In src/utils/dateUtils.ts\nexport const formatDueDate = (date: string | Date): string => {\n  return new Date(date).toLocaleDateString('en-US', {\n    year: 'numeric',\n    month: 'short',\n    day: 'numeric'\n  });\n};\n\n// In component\n{dueDate && (\n  <span className=\"due-date\">\n    Due: {formatDueDate(dueDate)}\n  </span>\n)}",
+            "benefits": "Consistent date formatting across the application. Locale-aware formatting options. Easier to change format in one place. Unit testable."
+          },
+          {
+            "type": "simplify",
+            "location": "Metadata rendering (lines 40-50)",
+            "impact": "low",
+            "description": "Combine related conditional renderings into a single metadata component",
+            "before": "<div className=\"todo-metadata\">\n  {priority && (\n    <span className={`priority priority-${priority}`}>\n      {priority.toUpperCase()}\n    </span>\n  )}\n  {dueDate && (\n    <span className=\"due-date\">\n      Due: {formatDueDate(dueDate)}\n    </span>\n  )}\n</div>",
+            "after": "<TodoMetadata priority={priority} dueDate={dueDate} />\n\n// New component: src/components/TodoMetadata.tsx\nexport const TodoMetadata: React.FC<TodoMetadataProps> = ({ priority, dueDate }) => {\n  if (!priority && !dueDate) return null;\n  return (\n    <div className=\"todo-metadata\">\n      {priority && <span className={`priority priority-${priority}`}>{priority.toUpperCase()}</span>}\n      {dueDate && <span className=\"due-date\">Due: {formatDueDate(dueDate)}</span>}\n    </div>\n  );\n};",
+            "benefits": "Better component separation of concerns. TodoItem becomes simpler. TodoMetadata can be tested independently. Easier to add more metadata fields later."
+          }
+        ],
+        "summary": "Component can be improved by extracting utility functions for priority colors and date formatting, and simplifying metadata rendering into a sub-component."
+      }
+    },
+    {
+      "file": "src/components/TodoList.tsx",
+      "codeQuality": {
+        "file": "src/components/TodoList.tsx",
+        "issues": [
+          {
+            "line": 14,
+            "severity": "medium",
+            "category": "performance",
+            "description": "Creating new arrow functions in render for each todo item causes unnecessary re-renders",
+            "suggestion": "Use useCallback for onToggle and onDelete handlers, or pass todo.id and use a wrapper function in parent component"
+          },
+          {
+            "line": 10,
+            "severity": "low",
+            "category": "best-practice",
+            "description": "Missing empty state handling or message",
+            "suggestion": "Add a conditional render to show a helpful message when todos array is empty: {todos.length === 0 && <p>No todos yet. Add one above!</p>}"
+          },
+          {
+            "line": 14,
+            "severity": "low",
+            "category": "maintainability",
+            "description": "Missing semantic HTML structure",
+            "suggestion": "Consider using <ul> and <li> elements instead of div for better semantic HTML and accessibility"
+          },
+          {
+            "line": 9,
+            "severity": "info",
+            "category": "best-practice",
+            "description": "Component lacks prop validation",
+            "suggestion": "While TypeScript provides compile-time checking, consider adding runtime validation for critical props in production"
+          }
+        ],
+        "overallScore": 75,
+        "summary": "Clean component structure with good TypeScript typing. Main concerns are performance optimization opportunities and missing empty state handling."
+      },
+      "testCoverage": {
+        "file": "src/components/TodoList.tsx",
+        "hasTests": false,
+        "testFiles": [],
+        "untestedPaths": [
+          {
+            "type": "function",
+            "location": "TodoList render",
+            "priority": "high",
+            "reasoning": "Main list rendering component. Bugs affect display of all todos.",
+            "suggestedTest": "Test rendering with empty array, single todo, multiple todos, and correct prop passing to TodoItem"
+          },
+          {
+            "type": "branch",
+            "location": "Empty state",
+            "priority": "medium",
+            "reasoning": "User experience when no todos exist",
+            "suggestedTest": "Test that appropriate message or UI is shown when todos array is empty"
+          },
+          {
+            "type": "edge-case",
+            "location": "Callback handlers",
+            "priority": "medium",
+            "reasoning": "New function instances may cause performance issues",
+            "suggestedTest": "Test that callbacks are properly memoized or stable across re-renders"
+          }
+        ],
+        "coverageEstimate": 0,
+        "summary": "No tests for list rendering component. Rendering logic, empty states, and callback handling are untested."
+      },
+      "refactorings": {
+        "file": "src/components/TodoList.tsx",
+        "suggestions": [],
+        "summary": "Component is relatively clean but could benefit from semantic HTML improvements and empty state handling."
+      }
+    },
+    {
+      "file": "src/App.tsx",
+      "codeQuality": {
+        "file": "src/App.tsx",
+        "issues": [
+          {
+            "line": 6,
+            "severity": "critical",
+            "category": "bug-risk",
+            "description": "State updates using spread operator can lead to stale closure issues in async scenarios",
+            "suggestion": "Use functional state updates to ensure you're working with the latest state: setTodos(prevTodos => [...prevTodos, todo])"
+          },
+          {
+            "line": 10,
+            "severity": "critical",
+            "category": "bug-risk",
+            "description": "State update uses stale state from closure",
+            "suggestion": "Use functional update: setTodos(prevTodos => prevTodos.map(t => t.id === id ? { ...t, completed: !t.completed } : t))"
+          },
+          {
+            "line": 14,
+            "severity": "critical",
+            "category": "bug-risk",
+            "description": "State update uses stale state from closure",
+            "suggestion": "Use functional update: setTodos(prevTodos => prevTodos.filter(t => t.id !== id))"
+          },
+          {
+            "line": 4,
+            "severity": "medium",
+            "category": "best-practice",
+            "description": "No persistence mechanism for todos",
+            "suggestion": "Consider adding localStorage or sessionStorage to persist todos: useEffect(() => { localStorage.setItem('todos', JSON.stringify(todos)); }, [todos])"
+          },
+          {
+            "line": 4,
+            "severity": "medium",
+            "category": "maintainability",
+            "description": "Missing error boundary to catch and handle runtime errors",
+            "suggestion": "Wrap components in an ErrorBoundary component to gracefully handle errors"
+          },
+          {
+            "line": 1,
+            "severity": "low",
+            "category": "performance",
+            "description": "Missing React.memo or useMemo optimizations for child components",
+            "suggestion": "Consider memoizing TodoList and TodoForm if they become performance bottlenecks"
+          },
+          {
+            "line": 18,
+            "severity": "low",
+            "category": "style",
+            "description": "Main container div lacks semantic HTML",
+            "suggestion": "Use <main> element instead of <div> for better semantic structure and accessibility"
+          }
+        ],
+        "overallScore": 68,
+        "summary": "The main App component has critical bugs related to state management using stale closures. All state updates should use functional form. Missing data persistence and error handling. Application structure is straightforward but lacks production-ready features."
+      },
+      "testCoverage": {
+        "file": "src/App.tsx",
+        "hasTests": false,
+        "testFiles": [],
+        "untestedPaths": [
+          {
+            "type": "function",
+            "location": "addTodo (line 6)",
+            "priority": "critical",
+            "reasoning": "Core functionality for adding todos. Stale closure bug present.",
+            "suggestedTest": "Test adding single todo, multiple todos, and verify state updates correctly with functional updates"
+          },
+          {
+            "type": "function",
+            "location": "toggleTodo (line 10)",
+            "priority": "critical",
+            "reasoning": "Core functionality for toggling completion. Stale closure bug present.",
+            "suggestedTest": "Test toggling todo completion status, verify immutability, and test with functional state updates"
+          },
+          {
+            "type": "function",
+            "location": "deleteTodo (line 14)",
+            "priority": "critical",
+            "reasoning": "Core functionality for deleting todos. Stale closure bug present.",
+            "suggestedTest": "Test deleting existing todo, non-existent todo, and verify state updates correctly"
+          },
+          {
+            "type": "class",
+            "location": "App component integration",
+            "priority": "high",
+            "reasoning": "Integration of all child components. End-to-end functionality must work.",
+            "suggestedTest": "Integration test: add todo via form, toggle it, delete it, and verify UI updates throughout"
+          },
+          {
+            "type": "edge-case",
+            "location": "State persistence",
+            "priority": "medium",
+            "reasoning": "Data loss on page refresh impacts user experience",
+            "suggestedTest": "Test localStorage persistence: add todos, refresh page, verify todos are restored"
+          }
+        ],
+        "coverageEstimate": 0,
+        "summary": "No tests for main App component. Critical state management bugs are untested. Integration between components is untested."
+      },
+      "refactorings": {
+        "file": "src/App.tsx",
+        "suggestions": [
+          {
+            "type": "extract-function",
+            "location": "Filter logic (lines 60-75)",
+            "impact": "high",
+            "description": "Extract complex filtering logic into a separate utility function with proper typing",
+            "before": "const filteredTodos = todos.filter(todo => {\n  if (filter === 'active') return !todo.completed;\n  if (filter === 'completed') return todo.completed;\n  return true;\n}).filter(todo => {\n  if (priorityFilter && priorityFilter !== 'all') {\n    return todo.priority === priorityFilter;\n  }\n  return true;\n});",
+            "after": "// In src/utils/todoFilters.ts\nexport const filterTodos = (todos, filters) => {\n  return todos.filter(todo => {\n    const passesStatusFilter = \n      filters.status === 'all' ||\n      (filters.status === 'active' && !todo.completed) ||\n      (filters.status === 'completed' && todo.completed);\n    const passesPriorityFilter = \n      filters.priority === 'all' || todo.priority === filters.priority;\n    return passesStatusFilter && passesPriorityFilter;\n  });\n};\n\nconst filteredTodos = filterTodos(todos, { status: filter, priority: priorityFilter });",
+            "benefits": "Testable filtering logic. Clear filter composition. Type-safe filter parameters. Can easily add more filter criteria. Better performance with single pass."
+          },
+          {
+            "type": "extract-function",
+            "location": "Sort logic (lines 76-85)",
+            "impact": "medium",
+            "description": "Create a dedicated sorting utility with configurable sort strategies",
+            "before": "const sortedTodos = filteredTodos.sort((a, b) => {\n  if (a.priority && b.priority) {\n    const priorityOrder = { high: 3, medium: 2, low: 1 };\n    return priorityOrder[b.priority] - priorityOrder[a.priority];\n  }\n  if (a.dueDate && b.dueDate) {\n    return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();\n  }\n  return 0;\n});",
+            "after": "// In src/utils/todoSorters.ts\nexport const sortTodos = (todos, strategies = ['priority', 'dueDate']) => {\n  return [...todos].sort((a, b) => {\n    for (const strategy of strategies) {\n      let result = 0;\n      if (strategy === 'priority') result = sortByPriority(a, b);\n      if (strategy === 'dueDate') result = sortByDueDate(a, b);\n      if (result !== 0) return result;\n    }\n    return 0;\n  });\n};\n\nconst sortedTodos = sortTodos(filteredTodos, ['priority', 'dueDate']);",
+            "benefits": "Composable sort strategies. Each sorter can be tested independently. Easy to add new sort methods. Configurable sort order. Immutable sorting."
+          },
+          {
+            "type": "pattern-improvement",
+            "location": "Entire App.tsx component",
+            "impact": "high",
+            "description": "Extract todo management logic into a custom hook to separate concerns",
+            "before": "function App() {\n  const [todos, setTodos] = useState([]);\n  const [filter, setFilter] = useState('all');\n  const addTodo = (todo) => { setTodos([...todos, todo]); };\n  const toggleTodo = (id) => { /* logic */ };\n  const deleteTodo = (id) => { /* logic */ };\n  return (/* JSX */);\n}",
+            "after": "// In src/hooks/useTodoManager.ts\nexport const useTodoManager = () => {\n  const [todos, setTodos] = useState([]);\n  const [filters, setFilters] = useState({ status: 'all', priority: 'all' });\n  const addTodo = useCallback((text, priority, dueDate) => {\n    setTodos(prev => [...prev, { id: crypto.randomUUID(), text, completed: false, priority, dueDate }]);\n  }, []);\n  const filteredAndSortedTodos = useMemo(() => sortTodos(filterTodos(todos, filters)), [todos, filters]);\n  return { todos: filteredAndSortedTodos, addTodo, toggleTodo, deleteTodo, updateFilters };\n};\n\nfunction App() {\n  const { todos, addTodo, toggleTodo, deleteTodo, updateFilters } = useTodoManager();\n  return (/* Simplified JSX */);\n}",
+            "benefits": "Clear separation of business logic and UI. Business logic is testable without React components. Memoized expensive operations. Better performance with useCallback. Reusable across different UI implementations. Easier to add features like persistence or undo/redo."
+          }
+        ],
+        "summary": "App component would greatly benefit from extracting filtering logic, sorting logic, and overall business logic into custom hooks. This is a high-impact architectural improvement that significantly enhances testability and maintainability."
+      }
+    }
+  ],
+  "summary": {
+    "totalFiles": 5,
+    "overallScore": 73,
+    "criticalIssues": 6,
+    "highPriorityTests": 12,
+    "refactoringOpportunities": 9
+  },
+  "recommendations": [
+    {
+      "priority": "critical",
+      "category": "Bug Fixes",
+      "description": "Fix stale closure bugs in App.tsx state management. All state updates in addTodo, toggleTodo, and deleteTodo must use functional form (setTodos(prev => ...)) to prevent data corruption.",
+      "files": [
+        "src/App.tsx"
+      ]
+    },
+    {
+      "priority": "critical",
+      "category": "Testing",
+      "description": "Add test infrastructure (Jest + Testing Library) and write tests for core business logic: TodoManager operations, state management, and form submission. Current test coverage is 0%.",
+      "files": [
+        "src/App.tsx",
+        "src/components/TodoForm.tsx",
+        "src/components/TodoItem.tsx",
+        "src/components/TodoList.tsx"
+      ]
+    },
+    {
+      "priority": "high",
+      "category": "Security",
+      "description": "Implement input validation and sanitization in TodoForm to prevent XSS attacks and invalid data entry. Add validation for empty inputs and potentially malicious content.",
+      "files": [
+        "src/components/TodoForm.tsx"
+      ]
+    },
+    {
+      "priority": "high",
+      "category": "Reliability",
+      "description": "Replace Date.now() ID generation with crypto.randomUUID() or similar robust unique identifier to prevent ID collisions when adding multiple todos quickly.",
+      "files": [
+        "src/components/TodoForm.tsx"
+      ]
+    },
+    {
+      "priority": "high",
+      "category": "Accessibility",
+      "description": "Add ARIA labels, semantic HTML elements (main, ul, li), and keyboard navigation support throughout the application to improve accessibility for screen readers and keyboard users.",
+      "files": [
+        "src/components/TodoForm.tsx",
+        "src/components/TodoItem.tsx",
+        "src/components/TodoList.tsx",
+        "src/App.tsx"
+      ]
+    },
+    {
+      "priority": "high",
+      "category": "Refactoring",
+      "description": "Extract business logic into custom hooks and utility functions. Separate filtering, sorting, and validation logic from components to improve testability and maintainability.",
+      "files": [
+        "src/App.tsx",
+        "src/components/TodoForm.tsx"
+      ]
+    },
+    {
+      "priority": "medium",
+      "category": "User Experience",
+      "description": "Add user confirmation for delete actions, empty state messages, and form validation feedback to improve user experience and prevent accidental data loss.",
+      "files": [
+        "src/components/TodoItem.tsx",
+        "src/components/TodoList.tsx",
+        "src/components/TodoForm.tsx"
+      ]
+    },
+    {
+      "priority": "medium",
+      "category": "Data Persistence",
+      "description": "Implement localStorage persistence to prevent data loss on page refresh. Add useEffect hooks to save and restore todos from localStorage.",
+      "files": [
+        "src/App.tsx"
+      ]
+    },
+    {
+      "priority": "medium",
+      "category": "Performance",
+      "description": "Optimize rendering performance using useCallback for event handlers and useMemo for expensive filtering/sorting operations to prevent unnecessary re-renders.",
+      "files": [
+        "src/App.tsx",
+        "src/components/TodoList.tsx"
+      ]
+    },
+    {
+      "priority": "low",
+      "category": "Code Quality",
+      "description": "Add JSDoc documentation, improve error handling with ErrorBoundary, and extract configuration constants (priority options, colors) to centralized files.",
+      "files": [
+        "src/types/Todo.ts",
+        "src/App.tsx",
+        "src/components/TodoForm.tsx",
+        "src/components/TodoItem.tsx"
+      ]
+    }
+  ],
+  "metadata": {
+    "analyzedAt": "2026-09-22T18:10:56.089Z",
+    "duration": 236230,
+    "agentVersions": {
+      "codeQualityAnalyzer": "abc6583",
+      "testCoverageAnalyzer": "aa961ed",
+      "refactoringSuggester": "a313a3f"
+    }
+  }
+}
